@@ -1,0 +1,11 @@
+version: '2'
+services:
+  test:
+    build: .
+    environment:
+      - REDIS_LOCATION=redis://redis:6379
+    depends_on:
+      - redis
+    command: bash -c "python /app/tests/run_basic_tests.py test --parallel"
+  redis:
+    image: redis
