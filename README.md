@@ -14,10 +14,12 @@ HiRedis is the preferred backend as it is very fast.
 
 
 ```python
+# settings.py
 import os
 
 CACHES = {
-    "default": {
+    "default": {}, # Leave your default the way it was for non async django access.
+    "async": {
         "BACKEND": "django-asyncio-redis.cache.AsyncRedisCache",
         "LOCATION": os.environ.get('REDIS_LOCATION', "redis://127.0.0.1:6379?db=1"),
         "POOLSIZE": 5,
@@ -25,6 +27,16 @@ CACHES = {
         "PROTOCOL_CLASS": "asyncio_redis.HiRedisProtocol",
     }
 }
+
+```
+```python
+# views.py
+from django.core.cache import caches
+from django.http import HttpResponse
+acache = caches.get('async')
+async def my_view(request):
+    val = await acache.get('test-key')
+    return HttpResponse(val)
 ```
 
 ### All fields:
