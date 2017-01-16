@@ -15,6 +15,7 @@ CACHES = {
         "LOCATION": REDIS_LOCATION,
         "POOLSIZE": 5,
         "TIMEOUT": 1200,
+        "PROTOCOL_CLASS": "asyncio_redis.HiRedisProtocol",
     }
 }
 
