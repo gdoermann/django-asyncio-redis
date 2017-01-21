@@ -21,7 +21,7 @@ class AsyncRedisCache(BaseCache):
         self._db = 0
         self._parse_server()
         self._params = params
-        self._params.pop('TIMEOUT')
+        self._params.pop('TIMEOUT', None)
         proto = self._params.pop('PROTOCOL_CLASS', ALLOWED_PROTOS[0])
         if proto not in ALLOWED_PROTOS:
             raise ImproperlyConfigured(
