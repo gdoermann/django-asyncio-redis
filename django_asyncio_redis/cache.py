@@ -1,7 +1,6 @@
-from asyncio_redis import RedisProtocol
-from django.core.cache.backends.base import BaseCache, DEFAULT_TIMEOUT
 from asyncio_redis.connection import Connection
 from asyncio_redis.pool import Pool
+from django.core.cache.backends.base import BaseCache, DEFAULT_TIMEOUT
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
@@ -9,6 +8,7 @@ ALLOWED_PROTOS = [
     "asyncio_redis.RedisProtocol",
     "asyncio_redis.HiRedisProtocol",
 ]
+
 
 class AsyncRedisCache(BaseCache):
     def __init__(self, server, params):
