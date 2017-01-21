@@ -33,7 +33,7 @@ CACHES = {
 # views.py
 from django.core.cache import caches
 from django.http import HttpResponse
-acache = caches.get('async')
+acache = caches['async']
 async def my_view(request):
     val = await acache.get('test-key')
     return HttpResponse(val)
