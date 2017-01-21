@@ -7,7 +7,7 @@ on first use with whatever loop the `asyncio-redis` library pulls (`asyncio.get_
 situation but I haven't been able to figure out how to manage loops in a global state object like `django.core.cache.cache`. 
 
 ### Usage
-**pip install coming soon.**
+`pip install django-asyncio-redis`
 
 The following will set your cache backend to the `AsyncRedisCache`. It will be using `HiRedis` and connection pooling. 
 HiRedis is the preferred backend as it is very fast.  
