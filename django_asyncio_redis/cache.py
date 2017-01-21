@@ -9,6 +9,8 @@ ALLOWED_PROTOS = [
     "asyncio_redis.HiRedisProtocol",
 ]
 
+default_encoder = 'django_asyncio_redis.encoder.JSONEncoder'
+
 
 class AsyncRedisCache(BaseCache):
     def __init__(self, server, params):
@@ -22,12 +24,16 @@ class AsyncRedisCache(BaseCache):
         self._parse_server()
         self._params = params
         self._params.pop('TIMEOUT', None)
+
         proto = self._params.pop('PROTOCOL_CLASS', ALLOWED_PROTOS[0])
         if proto not in ALLOWED_PROTOS:
             raise ImproperlyConfigured(
                 "Unknown protocol class. Please chose from the following {}".format(' OR '.join(ALLOWED_PROTOS))
             )
         self.protocol_class = import_string(proto)
+
+        encoder = self._params.pop('ENCODER', default_encoder)
+        self.encoder_class = import_string(encoder)
 
     def _parse_server(self):
         host_and_port = self._server.split("redis://")[1]
@@ -57,6 +63,7 @@ class AsyncRedisCache(BaseCache):
                 "host": self._host,
                 "port": self._port,
                 "db": self._db,
+                "encoder": self.encoder_class(),
                 "protocol_class": self.protocol_class,
                 **{k.lower(): v for k, v in self._params.items()}
             }

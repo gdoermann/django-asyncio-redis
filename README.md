@@ -55,7 +55,8 @@ async def my_view(request):
   * Optional. Default 300.
   * Specify the default cache expire time. Used in `set` type operations.
 * `ENCODER`
-    * Optional.
+    * Optional. Default `django_asyncio_redis.encoder.JSONEncoder`
+    * Determines how the data is encoded to be transmitted to redis.
 * `PROTOCOL_CLASS`
     * Optional. Default `asyncio_redis.RedisProtocol`.
     * Determines which protocol class to use. 

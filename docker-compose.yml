@@ -6,6 +6,6 @@ services:
       - REDIS_LOCATION=redis://redis:6379
     depends_on:
       - redis
-    command: bash -c "python /app/tests/run_basic_tests.py test --parallel"
+    command: bash /app/tests/run_tests.sh
   redis:
     image: redis

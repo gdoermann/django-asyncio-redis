@@ -13,8 +13,6 @@ CACHES = {
     "default": {
         "BACKEND": "django_asyncio_redis.cache.AsyncRedisCache",
         "LOCATION": REDIS_LOCATION,
-        "POOLSIZE": 5,
-        "TIMEOUT": 1200,
     }
 }
 
