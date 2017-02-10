@@ -75,7 +75,7 @@ class AsyncRedisCache(BaseCache):
 
     async def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None, **kwargs):
         key = self.make_key(key, version=version)
-        expire = int(self.get_backend_timeout(timeout))
+        expire = self.get_backend_timeout(timeout)
         resp = await (await self.client).set(key, value, expire=expire, **kwargs)
         return resp.status == "OK"
 
