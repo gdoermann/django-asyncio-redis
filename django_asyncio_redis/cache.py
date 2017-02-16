@@ -130,5 +130,6 @@ class AsyncRedisCache(BaseCache):
         return count
 
     def close(self, **kwargs):
-        self.client.close()
-        self._client = None
+        if self._client:
+            self._client.close()
+            self._client = None
