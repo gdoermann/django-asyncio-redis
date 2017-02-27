@@ -1,9 +1,9 @@
 # django-asyncio-redis
-A `asyncio-redis` backend for Django.
+A `aioredis` backend for Django.
 
 This project is currently in alpha. Basic functionality is working but I am testing out various ideas for loop 
 management and haven't fully tested all the endpoints yet. Currently, the implementation will setup a connection 
-on first use with whatever loop the `asyncio-redis` library pulls (`asyncio.get_event_loop()`). This is not exactly an ideal 
+on first use with whatever loop the `aioredis` library pulls (`asyncio.get_event_loop()`). This is not exactly an ideal 
 situation but I haven't been able to figure out how to manage loops in a global state object like `django.core.cache.cache`. 
 
 ### Usage
@@ -24,7 +24,6 @@ CACHES = {
         "LOCATION": os.environ.get('REDIS_LOCATION', "redis://127.0.0.1:6379?db=1"),
         "POOLSIZE": 5,
         "TIMEOUT": 1200,
-        "PROTOCOL_CLASS": "asyncio_redis.HiRedisProtocol",
     }
 }
 
@@ -44,10 +43,7 @@ async def my_view(request):
    * Required. 
    * Specified as `redis://host:port` with optional `?db=x` to specify the database.
 * `POOLSIZE`
-  * Optional. Default: 0.
-  * Enables connection pooling. 
-* `AUTO_RECONNECT`
-    * Optional. Default `True`.
+  * Optional. Default: 10.
 * `LOOP`
     * Optional. Default `None`.
     * The IO loop to run everything on.
@@ -57,10 +53,3 @@ async def my_view(request):
 * `ENCODER`
     * Optional. Default `django_asyncio_redis.encoder.JSONEncoder`
     * Determines how the data is encoded to be transmitted to redis.
-* `PROTOCOL_CLASS`
-    * Optional. Default `asyncio_redis.RedisProtocol`.
-    * Determines which protocol class to use. 
-    * Choices:
-        * `asyncio_redis.RedisProtocol`
-        * `asyncio_redis.HiRedisProtocol`
- 

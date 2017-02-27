@@ -1,5 +1,7 @@
 import os
 
+import asyncio
+
 DATABASES = {}
 SECRET_KEY = 'testing-secret-key'
 TIME_ZONE = "America/Denver"
@@ -14,6 +16,7 @@ CACHES = {
         "BACKEND": "django_asyncio_redis.cache.AsyncRedisCache",
         "POOLSIZE": 5,
         "LOCATION": REDIS_LOCATION,
+        "LOOP": asyncio.get_event_loop()
     }
 }
 

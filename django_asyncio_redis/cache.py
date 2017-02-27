@@ -1,13 +1,7 @@
-from asyncio_redis.connection import Connection
-from asyncio_redis.pool import Pool
+import asyncio
+from aioredis import create_pool
 from django.core.cache.backends.base import BaseCache, DEFAULT_TIMEOUT
-from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
-
-ALLOWED_PROTOS = [
-    "asyncio_redis.RedisProtocol",
-    "asyncio_redis.HiRedisProtocol",
-]
 
 default_encoder = 'django_asyncio_redis.encoder.JSONEncoder'
 
@@ -25,15 +19,15 @@ class AsyncRedisCache(BaseCache):
         self._params = params
         self._params.pop('TIMEOUT', None)
 
-        proto = self._params.pop('PROTOCOL_CLASS', ALLOWED_PROTOS[0])
-        if proto not in ALLOWED_PROTOS:
-            raise ImproperlyConfigured(
-                "Unknown protocol class. Please chose from the following {}".format(' OR '.join(ALLOWED_PROTOS))
-            )
-        self.protocol_class = import_string(proto)
+        self.loop = params.pop('LOOP', None)
+        if not self.loop:
+            self.loop = asyncio.get_event_loop()
+
+        self.pool_size = self._params.pop('POOLSIZE', 10)
 
         encoder = self._params.pop('ENCODER', default_encoder)
         self.encoder_class = import_string(encoder)
+        self.encoder = self.encoder_class()
 
     def _parse_server(self):
         host_and_port = self._server.split("redis://")[1]
@@ -60,76 +54,95 @@ class AsyncRedisCache(BaseCache):
         """
         if self._client is None:
             connection_kwargs = {
-                "host": self._host,
-                "port": self._port,
                 "db": self._db,
-                "encoder": self.encoder_class(),
-                "protocol_class": self.protocol_class,
+                "maxsize": self.pool_size,
+                "loop": self.loop,
                 **{k.lower(): v for k, v in self._params.items()}
             }
-            if 'poolsize' not in connection_kwargs:
-                self._client = await Connection.create(**connection_kwargs)
-            else:
-                self._client = await Pool.create(**connection_kwargs)
+            self._client = await create_pool(
+                (self._host, self._port),
+                **connection_kwargs
+            )
         return self._client
 
     async def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None, **kwargs):
         key = self.make_key(key, version=version)
         expire = self.get_backend_timeout(timeout)
-        resp = await (await self.client).set(key, value, expire=expire, **kwargs)
-        return resp.status == "OK"
+        with await (await self.client) as client:
+            return await client.set(key, self.encoder.encode(value), expire=expire, **kwargs)
 
     async def set_many(self, data, timeout=DEFAULT_TIMEOUT, version=None, **kwargs):
         expire = self.get_backend_timeout(timeout)
-        for key, value in data.items():
-            key = self.make_key(key, version=version)
-            await (await self.client).set(key, value, expire=expire, **kwargs)
+        with await (await self.client) as client:
+            for key, value in data.items():
+                key = self.make_key(key, version=version)
+                await client.set(key, self.encoder.encode(value), expire=expire, **kwargs)
 
     async def add(self, key, value, timeout=DEFAULT_TIMEOUT, version=None):
         return await self.set(key, value, timeout=timeout, version=version)
 
     async def get(self, key, default=None, version=None):
         key = self.make_key(key, version=version)
-        result = await (await self.client).get(key)
-        if not result:
-            return default
-        return result
+        with await (await self.client) as client:
+            result = await client.get(key)
+            if not result:
+                return default
+            return self.encoder.decode(result)
 
     async def get_many(self, keys, version=None):
-        return await (await self.client).mget_aslist((self.make_key(key, version=version) for key in keys))
+        versioned_keys = [self.make_key(key, version=version) for key in keys]
+        with await (await self.client) as client:
+            cache_results = await client.mget(*versioned_keys)
+            final_results = {}
+            for key, result in zip(keys, cache_results):
+                if isinstance(result, bytes):
+                    final_results[key] = self.encoder.decode(result)
+                else:
+                    final_results[key] = result
+            return final_results
 
     async def get_or_set(self, key, default=None, timeout=DEFAULT_TIMEOUT, version=None):
         key = self.make_key(key, version=version)
-        return await (await self.client).getset(key, default)
+        with await (await self.client) as client:
+            results = await client.getset(key, self.encoder.encode(default))
+            return self.encoder.decode(results)
 
     async def has_key(self, key, version=None):
-        return bool(await (await self.client).keys_aslist(self.make_key(key, version=version)))
+        with await (await self.client) as client:
+            return bool(await client.exists(self.make_key(key, version=version)))
 
     async def incr(self, key, delta=1, version=None):
         key = self.make_key(key, version=version)
-        return await (await self.client).incrby(key, delta)
+        with await (await self.client) as client:
+            return await client.incrby(key, delta)
 
     async def decr(self, key, delta=1, version=None):
         key = self.make_key(key, version=version)
-        return await (await self.client).decrby(key, delta)
+        with await (await self.client) as client:
+            return await client.decrby(key, delta)
 
     async def delete(self, key, version=None):
         key = self.make_key(key, version=version)
-        await (await self.client).delete([key])
+        with await (await self.client) as client:
+            return await client.delete(key)
 
     async def delete_many(self, keys, version=None):
-        await (await self.client).delete((self.make_key(key, version=version) for key in keys))
+        with await (await self.client) as client:
+            return await client.delete(*(self.make_key(key, version=version) for key in keys))
 
     async def clear(self):
         """
         Clears all keys. Not using flushall and instead returning a count for compatibility with other Django backends.
         """
-        keys = await (await self.client).keys_aslist('*')
-        count = len(keys)
-        await (await self.client).delete(keys)
-        return count
+        with await (await self.client) as client:
+            keys = await client.keys(self.make_key('*'))
+            count = len(keys)
+            await client.delete(*keys)
+            return count
 
-    def close(self, **kwargs):
-        if self._client:
-            self._client.close()
-            self._client = None
+    # Django closes the cache after every request. We don't need to do that.
+    # async def close(self, **kwargs):
+    #     if self._client:
+    #         self._client.close()
+    #         await self._client.wait_closed()
+    #         self._client = None

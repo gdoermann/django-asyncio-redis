@@ -20,5 +20,5 @@ setup(
     packages=[
         'django_asyncio_redis'
     ],
-    install_requires=['django>=1.8', 'asyncio-redis']
+    install_requires=['django>=1.8', 'aioredis']
 )
